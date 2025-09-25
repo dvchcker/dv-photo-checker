@@ -276,11 +276,6 @@ function stopDrag(){ draggingLine=null; }
 
 /* reset lines */
 resetLinesBtn.addEventListener('click', ()=>{ headTopY=140; chinY=460; eyeY=300;
-  /* reset lines */
-resetLinesBtn.addEventListener('click', ()=>{ 
-  headTopY = 140; 
-  chinY = 460; 
-  eyeY = 300; 
   redraw(); 
 });
 
