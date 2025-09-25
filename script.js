@@ -292,8 +292,8 @@ clearBtn.addEventListener('click', ()=>{
 
 /* load face-api models */
 Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('./models'),
-  faceapi.nets.faceLandmark68Net.loadFromUri('./models')
+  faceapi.nets.tinyFaceDetector.loadFromUri('models'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('models')
 ]).then(()=>console.log('face-api models loaded'));
 
 /* set check result helper */
