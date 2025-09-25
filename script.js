@@ -1,7 +1,5 @@
-/* script.js */
-// كامل: responsive canvas (internal 600), drag touch/mouse, dark mode, lang toggle, dashed center lines, checks, edited detection
+/* script.js - version without background checks */
 
-/* -------- helpers & translations -------- */
 const T = {
   en: {
     title: "DV Photo Checker",
@@ -25,7 +23,6 @@ const T = {
       ["Head tilt ≤5°","tilt"],
       ["Contrast ok","contrast"],
       ["No strong shadows","shadow"],
-      ["Background uniform & light","background"],
       ["No software editing detected","edited"]
     ]
   },
@@ -51,7 +48,6 @@ const T = {
       ["ميلان الرأس ≤5°","tilt"],
       ["التباين جيد","contrast"],
       ["لا ظلال قوية","shadow"],
-      ["الخلفية فاتحة وموحدة","background"],
       ["لم يتم التعديل باستخدام برامج تحرير","edited"]
     ]
   }
@@ -60,7 +56,7 @@ const T = {
 let lang = 'en';
 let themeDark = false;
 
-/* -------- DOM -------- */
+/* DOM */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const uploadInput = document.getElementById('upload');
@@ -73,9 +69,6 @@ const themeBtn = document.getElementById('themeBtn');
 const checksList = document.getElementById('checksList');
 const hintEl = document.getElementById('hint');
 const titleEl = document.getElementById('title');
-const uploadLabel = document.getElementById('uploadLabel') || uploadBtn.querySelector('span');
-const checkLabel = document.getElementById('checkLabel') || checkBtn.querySelector('span');
-const clearLabel = document.getElementById('clearLabel') || clearBtn.querySelector('span');
 const resultsTitle = document.getElementById('resultsTitle');
 
 let uploadedFile = null;
@@ -83,14 +76,11 @@ let originalImage = null;
 let exifData = null;
 let lastDetection = null;
 
-/* internal canvas logical size */
 const CANVAS_SIZE = 600;
-
-/* default lines (in canvas coordinate space) */
 let headTopY = 140, chinY = 460, eyeY = 300;
 let draggingLine = null;
 
-/* build checks UI */
+/* UI build */
 function buildChecks() {
   checksList.innerHTML = '';
   const items = T[lang].items;
@@ -104,14 +94,13 @@ function buildChecks() {
 }
 buildChecks();
 
-/* translations */
 function applyLang(){
   const x = T[lang];
   titleEl.innerText = x.title;
   hintEl.innerText = x.hint;
-  uploadBtn.innerHTML = `📁 <span id="uploadLabel">${x.upload}</span>`;
-  checkBtn.innerHTML = `🔍 <span id="checkLabel">${x.check}</span>`;
-  clearBtn.innerHTML = `🗑️ <span id="clearLabel">${x.clear}</span>`;
+  uploadBtn.innerHTML = `📁 ${x.upload}`;
+  checkBtn.innerHTML = `🔍 ${x.check}`;
+  clearBtn.innerHTML = `🗑️ ${x.clear}`;
   resetLinesBtn.innerText = x.reset;
   resultsTitle.innerText = x.results;
   langBtn.innerText = lang === 'en' ? 'AR' : 'EN';
@@ -119,18 +108,15 @@ function applyLang(){
 }
 applyLang();
 
-/* theme toggle */
 function applyTheme(){
   document.body.classList.toggle('dark', themeDark);
   themeBtn.innerText = themeDark ? '☀️' : '🌙';
 }
 applyTheme();
 
-/* events for toggles */
 langBtn.addEventListener('click', ()=>{ lang = lang === 'en' ? 'ar' : 'en'; applyLang(); });
 themeBtn.addEventListener('click', ()=>{ themeDark = !themeDark; applyTheme(); });
 
-/* upload handlers */
 uploadBtn.addEventListener('click', ()=> uploadInput.click());
 uploadInput.addEventListener('change', handleUpload);
 
@@ -142,64 +128,20 @@ function clientToCanvasY(clientY){
   return clamp((clientY - rect.top) * scaleY, 0, CANVAS_SIZE);
 }
 
-/* draw functions */
+/* draw */
 function clearCanvas(){ ctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE); }
-function drawImageScaled(){
-  if (!originalImage) return;
-  ctx.drawImage(originalImage, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
-}
-function drawCenterGuides(){
-  ctx.save();
-  ctx.strokeStyle = 'rgba(150,150,150,0.6)';
-  ctx.setLineDash([6,6]);
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(CANVAS_SIZE/2,0); ctx.lineTo(CANVAS_SIZE/2,CANVAS_SIZE);
-  ctx.moveTo(0,CANVAS_SIZE/2); ctx.lineTo(CANVAS_SIZE,CANVAS_SIZE/2);
-  ctx.stroke();
-  ctx.restore();
-}
+function drawImageScaled(){ if (!originalImage) return; ctx.drawImage(originalImage, 0, 0, CANVAS_SIZE, CANVAS_SIZE); }
+function drawCenterGuides(){ ctx.save(); ctx.strokeStyle = 'rgba(150,150,150,0.6)'; ctx.setLineDash([6,6]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(CANVAS_SIZE/2,0); ctx.lineTo(CANVAS_SIZE/2,CANVAS_SIZE); ctx.moveTo(0,CANVAS_SIZE/2); ctx.lineTo(CANVAS_SIZE,CANVAS_SIZE/2); ctx.stroke(); ctx.restore(); }
 function drawLinesAndLabels(){
-  ctx.save();
-  ctx.lineWidth = 2;
-  ctx.font = "14px Cairo, Arial";
-
-  // top (yellow)
-  ctx.strokeStyle = '#facc15';
-  ctx.beginPath(); ctx.moveTo(0,headTopY); ctx.lineTo(CANVAS_SIZE,headTopY); ctx.stroke();
-  drawLabel(8, headTopY - 6, `top ${fmtPercent((1 - headTopY/CANVAS_SIZE)*100)}`);
-
-  // chin
+  ctx.save(); ctx.lineWidth = 2; ctx.font = "14px Cairo, Arial";
+  ctx.strokeStyle = '#facc15'; ctx.beginPath(); ctx.moveTo(0,headTopY); ctx.lineTo(CANVAS_SIZE,headTopY); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(0,chinY); ctx.lineTo(CANVAS_SIZE,chinY); ctx.stroke();
-  drawLabel(8, chinY - 6, `chin ${fmtPercent((1 - chinY/CANVAS_SIZE)*100)}`);
-
-  // eyes (cyan)
-  ctx.strokeStyle = '#06b6d4';
-  ctx.beginPath(); ctx.moveTo(0, eyeY); ctx.lineTo(CANVAS_SIZE, eyeY); ctx.stroke();
-  drawLabel(8, eyeY - 6, `eyes ${fmtPercent((1 - eyeY/CANVAS_SIZE)*100)}`);
-
+  ctx.strokeStyle = '#06b6d4'; ctx.beginPath(); ctx.moveTo(0, eyeY); ctx.lineTo(CANVAS_SIZE, eyeY); ctx.stroke();
   ctx.restore();
 }
-function drawLabel(x,y,text){
-  ctx.save();
-  ctx.font = "13px Cairo, Arial";
-  const pad = 6; const h = 18;
-  const w = ctx.measureText(text).width + pad*2;
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(x, y - h + 6, w, h);
-  ctx.fillStyle = 'white';
-  ctx.textAlign = 'left';
-  ctx.fillText(text, x + pad, y - h/2 + 8);
-  ctx.restore();
-}
-function redraw(){
-  clearCanvas();
-  if (originalImage) drawImageScaled();
-  drawCenterGuides();
-  drawLinesAndLabels();
-}
+function redraw(){ clearCanvas(); if (originalImage) drawImageScaled(); drawCenterGuides(); drawLinesAndLabels(); }
 
-/* Upload -> draw, read EXIF, auto-detect face */
+/* upload */
 async function handleUpload(e){
   const file = e.target.files[0];
   if (!file) return;
@@ -209,93 +151,41 @@ async function handleUpload(e){
     const img = new Image();
     img.onload = async ()=>{
       originalImage = img;
-      canvas.width = CANVAS_SIZE; 
-      canvas.height = CANVAS_SIZE;
-      clearCanvas();
-      drawImageScaled();
+      canvas.width = CANVAS_SIZE; canvas.height = CANVAS_SIZE;
+      clearCanvas(); drawImageScaled();
 
-      // قراءة بيانات EXIF
-      try{
-        exifData = null;
-        EXIF.getData(img, function(){ exifData = EXIF.getAllTags(this) || null; });
-      }catch(e){ exifData = null; }
+      try{ exifData = null; EXIF.getData(img, function(){ exifData = EXIF.getAllTags(this) || null; }); }catch(e){ exifData = null; }
 
-      // كشف الوجه
-      try{
-        lastDetection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
-      }catch(e){ lastDetection = null; }
+      try{ lastDetection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(); }catch(e){ lastDetection = null; }
 
-      if (lastDetection){
-        const box = lastDetection.detection.box;
-        const lm = lastDetection.landmarks;
-        const jaw = lm.getJawOutline();
-        const leftEye = lm.getLeftEye();
-        const rightEye = lm.getRightEye();
-
-        headTopY = clamp(box.y - Math.max(8, box.height*0.06), 6, CANVAS_SIZE-6);
-        chinY = clamp(jaw[Math.floor(jaw.length/2)].y, 6, CANVAS_SIZE-6);
-        const leftAvgY = leftEye.reduce((s,p)=>s+p.y,0)/leftEye.length;
-        const rightAvgY = rightEye.reduce((s,p)=>s+p.y,0)/rightEye.length;
-        eyeY = clamp((leftAvgY+rightAvgY)/2, 6, CANVAS_SIZE-6);
-      } else {
-        headTopY = 140; chinY = 460; eyeY = 300;
-      }
-
-      buildChecks();
-      redraw();
+      buildChecks(); redraw();
     };
     img.src = reader.result;
   };
   reader.readAsDataURL(file);
 }
 
-/* Drag (mouse + touch) */
+/* dragging */
 function getClientY(e){ return e.touches ? e.touches[0].clientY : e.clientY; }
 canvas.addEventListener('mousedown', e=> startDrag(clientToCanvasY(getClientY(e))));
 canvas.addEventListener('mousemove', e=> moveDrag(clientToCanvasY(getClientY(e))));
-canvas.addEventListener('mouseup', stopDrag);
-canvas.addEventListener('mouseleave', stopDrag);
+canvas.addEventListener('mouseup', stopDrag); canvas.addEventListener('mouseleave', stopDrag);
 canvas.addEventListener('touchstart', e=> startDrag(clientToCanvasY(getClientY(e))), {passive:false});
 canvas.addEventListener('touchmove', e=>{ e.preventDefault(); moveDrag(clientToCanvasY(getClientY(e))); }, {passive:false});
 canvas.addEventListener('touchend', stopDrag);
-
-function startDrag(y){
-  const d1=Math.abs(y-headTopY),d2=Math.abs(y-chinY),d3=Math.abs(y-eyeY);
-  const min=Math.min(d1,d2,d3);
-  if(min>20){ draggingLine=null; return; }
-  draggingLine = min===d1?'headTop':min===d2?'chin':'eye';
-}
-function moveDrag(y){
-  if(!draggingLine) return;
-  if(draggingLine==='headTop') headTopY=clamp(y,6,chinY-8);
-  else if(draggingLine==='chin') chinY=clamp(y,headTopY+8,CANVAS_SIZE-6);
-  else eyeY=clamp(y,6,CANVAS_SIZE-6);
-  redraw();
-}
+function startDrag(y){ const d1=Math.abs(y-headTopY),d2=Math.abs(y-chinY),d3=Math.abs(y-eyeY); const min=Math.min(d1,d2,d3); if(min>20){ draggingLine=null; return; } draggingLine = min===d1?'headTop':min===d2?'chin':'eye'; }
+function moveDrag(y){ if(!draggingLine) return; if(draggingLine==='headTop') headTopY=clamp(y,6,chinY-8); else if(draggingLine==='chin') chinY=clamp(y,headTopY+8,CANVAS_SIZE-6); else eyeY=clamp(y,6,CANVAS_SIZE-6); redraw(); }
 function stopDrag(){ draggingLine=null; }
+resetLinesBtn.addEventListener('click', ()=>{ headTopY=140; chinY=460; eyeY=300; redraw(); });
+clearBtn.addEventListener('click', ()=>{ uploadedFile = null; originalImage = null; exifData = null; lastDetection = null; clearCanvas(); buildChecks(); });
 
-/* reset lines */
-resetLinesBtn.addEventListener('click', ()=>{ headTopY=140; chinY=460; eyeY=300;
-  redraw(); 
-});
-
-/* clear */
-clearBtn.addEventListener('click', ()=>{
-  uploadedFile = null; 
-  originalImage = null; 
-  exifData = null; 
-  lastDetection = null; 
-  clearCanvas(); 
-  buildChecks();
-});
-
-/* load face-api models */
+/* models */
 Promise.all([
   faceapi.nets.tinyFaceDetector.loadFromUri('models'),
   faceapi.nets.faceLandmark68Net.loadFromUri('models')
-]).then(()=>console.log('face-api models loaded'));
+]);
 
-/* set check result helper */
+/* helpers */
 function setCheckResult(key, status, message){
   const el = document.getElementById(`${key}-res`);
   if(!el) return;
@@ -303,22 +193,34 @@ function setCheckResult(key, status, message){
   el.innerText = (status==='pass'?'✅ ':status==='fail'?'❌ ':'⏳ ') + (message||'');
 }
 
-/* Check color depth */
+/* shadow analysis only */
+function analyzeShadows(imgData, box) {
+  const width = imgData.width, height = imgData.height, pixels = imgData.data;
+  let darkCount=0, total=0;
+  for(let i=0;i<pixels.length;i+=4){
+    const r=pixels[i], g=pixels[i+1], b=pixels[i+2];
+    const lum=0.299*r+0.587*g+0.114*b;
+    if(lum<40) darkCount++;
+    total++;
+  }
+  const pct = darkCount/total;
+  return { status: pct<=0.1 ? 'pass':'fail', message:`dark ${(pct*100).toFixed(1)}%` };
+}
+
+/* checks */
 function checkColorDepth(){
   if(!originalImage) return 'fail';
   const tmpCanvas = document.createElement('canvas');
   tmpCanvas.width = originalImage.naturalWidth || CANVAS_SIZE;
   tmpCanvas.height = originalImage.naturalHeight || CANVAS_SIZE;
   const tmpCtx = tmpCanvas.getContext('2d');
-  tmpCtx.drawImage(originalImage, 0, 0, tmpCanvas.width, tmpCanvas.height);
-  const imgData = tmpCtx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height).data;
-  for(let i=0; i<imgData.length; i+=4){
+  tmpCtx.drawImage(originalImage,0,0,tmpCanvas.width,tmpCanvas.height);
+  const imgData = tmpCtx.getImageData(0,0,tmpCanvas.width,tmpCanvas.height).data;
+  for(let i=0;i<imgData.length;i+=4){
     if(imgData[i+3] !== 255) return 'fail';
   }
   return 'pass';
 }
-
-/* Check EXIF date ≤6 months */
 function checkExifDate(){
   if(!exifData || !exifData.DateTimeOriginal) return 'fail';
   const dateStr = exifData.DateTimeOriginal.replace(/:/g,'-').replace(' ','T');
@@ -327,8 +229,6 @@ function checkExifDate(){
   const diffMonths = (now.getFullYear()-imgDate.getFullYear())*12 + (now.getMonth()-imgDate.getMonth());
   return (diffMonths <= 6) ? 'pass' : 'fail';
 }
-
-/* Check software editing */
 function checkEdited(){
   if(!exifData) return 'fail';
   const software = exifData.Software || '';
@@ -336,13 +236,11 @@ function checkEdited(){
   return edited ? 'fail' : 'pass';
 }
 
-/* Check button */
+/* main check */
 checkBtn.addEventListener('click', async ()=>{
   if(!uploadedFile) return alert(lang==='en'?'Please upload an image first':'الرجاء تحميل صورة أولا');
 
-  try{ 
-    lastDetection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(); 
-  }catch(e){ lastDetection=null; }
+  try{ lastDetection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(); }catch(e){ lastDetection=null; }
 
   const natW = originalImage?.naturalWidth || null;
   const natH = originalImage?.naturalHeight || null;
@@ -356,63 +254,48 @@ checkBtn.addEventListener('click', async ()=>{
   setCheckResult('date', checkExifDate(), exifData?.DateTimeOriginal || '');
   setCheckResult('color', checkColorDepth(), checkColorDepth()==='pass'?'24-bit':'with alpha');
 
-  const headHeightPercent = ((chinY-headTopY)/CANVAS_SIZE)*100;
-  setCheckResult('head', (headHeightPercent>=50 && headHeightPercent<=69)?'pass':'fail', fmtPercent(headHeightPercent));
-
-  const eyeLevelPercent = (1-eyeY/CANVAS_SIZE)*100;
-  setCheckResult('eyes', (eyeLevelPercent>=56 && eyeLevelPercent<=69)?'pass':'fail', fmtPercent(eyeLevelPercent));
-
-  if(lastDetection){
+  if (lastDetection) {
     const box = lastDetection.detection.box;
-    const lm = lastDetection.landmarks;
-    const leftEye = lm.getLeftEye();
-    const rightEye = lm.getRightEye();
-    const faceCenterX = box.x + box.width/2;
-    const deviation = Math.abs(faceCenterX - CANVAS_SIZE/2)/CANVAS_SIZE*100;
-    setCheckResult('center', deviation<=5?'pass':'fail', fmtPercent(deviation));
+    const headPercent = (chinY - headTopY)/CANVAS_SIZE*100;
+    setCheckResult('head', (headPercent>=50 && headPercent<=69)?'pass':'fail', `${fmtPercent(headPercent)}`);
+    const eyePercent = (1 - eyeY/CANVAS_SIZE)*100;
+    setCheckResult('eyes', (eyePercent>=56 && eyePercent<=69)?'pass':'fail', `${fmtPercent(eyePercent)}`);
+    const centerX = box.x + box.width/2;
+    const off = Math.abs(centerX - CANVAS_SIZE/2)/CANVAS_SIZE*100;
+    setCheckResult('center', off<=5?'pass':'fail', `${fmtPercent(off)}`);
+    const jaw = lastDetection.landmarks.getJawOutline();
+    const dx = jaw[jaw.length-1].x - jaw[0].x;
+    const dy = jaw[jaw.length-1].y - jaw[0].y;
+    const tilt = Math.atan2(dy,dx)*180/Math.PI;
+    setCheckResult('tilt', Math.abs(tilt)<5?'pass':'fail', `${tilt.toFixed(1)}°`);
 
-    const leftAvg = leftEye.reduce((s,p)=>({x:s.x+p.x, y:s.y+p.y}), {x:0,y:0});
-    leftAvg.x /= leftEye.length; leftAvg.y /= leftEye.length;
-    const rightAvg = rightEye.reduce((s,p)=>({x:s.x+p.x, y:s.y+p.y}), {x:0,y:0});
-    rightAvg.x /= rightEye.length; rightAvg.y /= rightEye.length;
-    const slope = (rightAvg.y-leftAvg.y)/(rightAvg.x-leftAvg.x || 0.0001);
-    const angle = Math.atan(slope)*180/Math.PI;
-    setCheckResult('tilt', Math.abs(angle)<=5?'pass':'fail', `${Math.abs(angle).toFixed(1)}°`);
+    const imgData = ctx.getImageData(0,0,CANVAS_SIZE,CANVAS_SIZE);
+    const shadowRes = analyzeShadows(imgData, box);
+    setCheckResult('shadow', shadowRes.status, shadowRes.message);
   } else {
-    setCheckResult('center','fail','Auto-detect failed');
-    setCheckResult('tilt','fail','Auto-detect failed');
+    setCheckResult('head','fail','No face');
+    setCheckResult('eyes','fail','No face');
+    setCheckResult('center','fail','No face');
+    setCheckResult('tilt','fail','No face');
+    setCheckResult('shadow','fail','No face');
   }
 
-  // contrast/shadow
-  const imgData = ctx.getImageData(0,0,CANVAS_SIZE, CANVAS_SIZE).data;
-  let min=255, max=0;
-  for(let i=0;i<imgData.length;i+=4){
-    const v = 0.299*imgData[i]+0.587*imgData[i+1]+0.114*imgData[i+2];
-    if(v<min) min=v; if(v>max) max=v;
+  if (originalImage) {
+    const tmp = document.createElement('canvas'); tmp.width = CANVAS_SIZE; tmp.height = CANVAS_SIZE;
+    const tctx = tmp.getContext('2d'); tctx.drawImage(originalImage,0,0,CANVAS_SIZE,CANVAS_SIZE);
+    const data = tctx.getImageData(0,0,CANVAS_SIZE,CANVAS_SIZE).data;
+    let sum=0, sum2=0, count=data.length/4;
+    for (let i=0;i<data.length;i+=4){
+      const lum=0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+      sum+=lum; sum2+=lum*lum;
+    }
+    const mean=sum/count; const std=Math.sqrt(sum2/count-mean*mean);
+    setCheckResult('contrast', std>30?'pass':'fail', `σ=${std.toFixed(1)}`);
+  } else {
+    setCheckResult('contrast','fail','No image');
   }
-  const contrastPercent = ((max-min)/255)*100;
-  setCheckResult('contrast', contrastPercent>40?'pass':'fail', `${contrastPercent.toFixed(1)}%`);
 
-  // simple shadow check: any very dark areas
-  let shadowFail=false;
-  for(let i=0;i<imgData.length;i+=4){
-    const v = 0.299*imgData[i]+0.587*imgData[i+1]+0.114*imgData[i+2];
-    if(v<30){ shadowFail=true; break; }
-  }
-  setCheckResult('shadow', shadowFail?'fail':'pass');
-
-  // background uniformity: sample corners
-  const corners = [[0,0],[CANVAS_SIZE-1,0],[0,CANVAS_SIZE-1],[CANVAS_SIZE-1,CANVAS_SIZE-1]];
-  let bgFail=false;
-  corners.forEach(([x,y])=>{
-    const i=(y*CANVAS_SIZE + x)*4;
-    const v = imgData[i]+imgData[i+1]+imgData[i+2];
-    if(v/3 < 180) bgFail=true;
-  });
-  setCheckResult('background', bgFail?'fail':'pass');
-
-  // edited detection
-  setCheckResult('edited', checkEdited(), exifData?.Software || '');
+  setCheckResult('edited', checkEdited());
 });
 
 /* initial draw */
