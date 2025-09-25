@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DV Photo Checker - فحص الصور للوتري الأمريكي</title>
+
+  <!-- SEO -->
+  <meta name="description" content="أداة مجانية لفحص الصور وفق متطلبات اللوتري الأمريكي (DV Lottery) مع نتائج دقيقة وسريعة.">
+  <meta name="keywords" content="DV Lottery, فحص الصور, اللوتري الأمريكي, صورة القرعة, DV Photo Checker">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="DV Photo Checker">
+  <meta property="og:description" content="أداة مجانية لفحص الصور وفق معايير اللوتري الأمريكي.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="path/to/social-share-image.png"> <!-- ضع صورة مشاركة هنا -->
+  <meta property="og:url" content="https://yourwebsite.com"> <!-- ضع رابط موقعك هنا -->
+
+  <!-- مكتبات -->
+  <script src="face-api.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+
+  <!-- خط -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">DV</div>
+        <div>
+          <h1 id="title">DV Photo Checker</h1>
+          <div class="muted small">تحقق سريع من معايير صورة القرعة | DV Lottery</div>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="toggles">
+          <button id="langBtn" class="btn small" aria-pressed="false">EN</button>
+          <button id="themeBtn" class="btn small" aria-pressed="false">🌙</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card leftCol">
+        <div id="photo-frame" style="position:relative">
+          <canvas id="canvas" width="600" height="600" aria-label="photo canvas"></canvas>
+          <div class="center-overlay" aria-hidden="true">
+            <svg viewBox="0 0 600 600" preserveAspectRatio="xMidYMid slice">
+              <line x1="300" y1="0" x2="300" y2="600" stroke="rgba(150,150,150,0.6)" stroke-width="1" stroke-dasharray="6,6"/>
+              <line x1="0" y1="300" x2="600" y2="300" stroke="rgba(150,150,150,0.6)" stroke-width="1" stroke-dasharray="6,6"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="metaRow">
+          <button id="uploadBtn" class="btn">📁 <span id="uploadLabel">Upload</span></button>
+          <input type="file" id="upload" accept="image/jpeg" hidden>
+          <button id="resetLines" class="btn">↺ Reset Lines</button>
+          <button id="checkBtn" class="btn primary">🔍 <span id="checkLabel">Check</span></button>
+          <button id="clearBtn" class="btn">🗑️ <span id="clearLabel">Clear</span></button>
+        </div>
+        <div class="smallHint" id="hint">اسحب الخط الأصفر (أعلى الرأس / الذقن) أو الأزرق (العين) باللمس أو الفأرة لتعديل — ثم اضغط فحص.</div>
+      </section>
+
+      <aside class="card rightCol">
+        <h3 id="resultsTitle">Results</h3>
+        <div class="checksList" id="checksList"></div>
+        <div style="margin-top:12px">
+          <div class="muted">Head % = chin→top relative to image height. Eye % = measured bottom→top (inverted).</div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      Made with ♥
+      <!-- AdSense placeholder -->
+      <!--
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-XXXXXXXXXXXX"
+           data-ad-slot="YYYYYYYYYY"
+           data-ad-format="auto"></ins>
+      <script>
+           (adsbygoogle = window.adsbygoogle || []).push({});
+      </script>
+      -->
+    </footer>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
