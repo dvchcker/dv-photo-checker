@@ -1,5 +1,6 @@
-/* script.js - version without background checks */
+/* script.js - version without background & shadow checks */
 
+// النصوص (لغتين: عربي / إنجليزي)
 const T = {
   en: {
     title: "DV Photo Checker",
@@ -22,7 +23,6 @@ const T = {
       ["Face centered ±5%","center"],
       ["Head tilt ≤5°","tilt"],
       ["Contrast ok","contrast"],
-      ["No strong shadows","shadow"],
       ["No software editing detected","edited"]
     ]
   },
@@ -47,7 +47,6 @@ const T = {
       ["الوجه في المركز ±5%","center"],
       ["ميلان الرأس ≤5°","tilt"],
       ["التباين جيد","contrast"],
-      ["لا ظلال قوية","shadow"],
       ["لم يتم التعديل باستخدام برامج تحرير","edited"]
     ]
   }
@@ -56,7 +55,7 @@ const T = {
 let lang = 'en';
 let themeDark = false;
 
-/* DOM */
+/* DOM elements */
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const uploadInput = document.getElementById('upload');
@@ -76,11 +75,12 @@ let originalImage = null;
 let exifData = null;
 let lastDetection = null;
 
+/* إعدادات الرسم */
 const CANVAS_SIZE = 600;
 let headTopY = 140, chinY = 460, eyeY = 300;
 let draggingLine = null;
 
-/* UI build */
+/* UI build: إنشاء قائمة الفحوص */
 function buildChecks() {
   checksList.innerHTML = '';
   const items = T[lang].items;
@@ -94,6 +94,7 @@ function buildChecks() {
 }
 buildChecks();
 
+/* تغيير اللغة */
 function applyLang(){
   const x = T[lang];
   titleEl.innerText = x.title;
@@ -108,18 +109,20 @@ function applyLang(){
 }
 applyLang();
 
+/* تغيير المظهر */
 function applyTheme(){
   document.body.classList.toggle('dark', themeDark);
   themeBtn.innerText = themeDark ? '☀️' : '🌙';
 }
 applyTheme();
 
+/* أزرار التحكم */
 langBtn.addEventListener('click', ()=>{ lang = lang === 'en' ? 'ar' : 'en'; applyLang(); });
 themeBtn.addEventListener('click', ()=>{ themeDark = !themeDark; applyTheme(); });
-
 uploadBtn.addEventListener('click', ()=> uploadInput.click());
 uploadInput.addEventListener('change', handleUpload);
 
+/* Helpers */
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function fmtPercent(v){ return (Math.round(v*10)/10).toFixed(1) + '%';}
 function clientToCanvasY(clientY){
@@ -128,7 +131,7 @@ function clientToCanvasY(clientY){
   return clamp((clientY - rect.top) * scaleY, 0, CANVAS_SIZE);
 }
 
-/* draw */
+/* الرسم */
 function clearCanvas(){ ctx.clearRect(0,0,CANVAS_SIZE,CANVAS_SIZE); }
 function drawImageScaled(){ if (!originalImage) return; ctx.drawImage(originalImage, 0, 0, CANVAS_SIZE, CANVAS_SIZE); }
 function drawCenterGuides(){ ctx.save(); ctx.strokeStyle = 'rgba(150,150,150,0.6)'; ctx.setLineDash([6,6]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(CANVAS_SIZE/2,0); ctx.lineTo(CANVAS_SIZE/2,CANVAS_SIZE); ctx.moveTo(0,CANVAS_SIZE/2); ctx.lineTo(CANVAS_SIZE,CANVAS_SIZE/2); ctx.stroke(); ctx.restore(); }
@@ -141,7 +144,7 @@ function drawLinesAndLabels(){
 }
 function redraw(){ clearCanvas(); if (originalImage) drawImageScaled(); drawCenterGuides(); drawLinesAndLabels(); }
 
-/* upload */
+/* رفع صورة */
 async function handleUpload(e){
   const file = e.target.files[0];
   if (!file) return;
@@ -155,7 +158,6 @@ async function handleUpload(e){
       clearCanvas(); drawImageScaled();
 
       try{ exifData = null; EXIF.getData(img, function(){ exifData = EXIF.getAllTags(this) || null; }); }catch(e){ exifData = null; }
-
       try{ lastDetection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(); }catch(e){ lastDetection = null; }
 
       buildChecks(); redraw();
@@ -165,7 +167,7 @@ async function handleUpload(e){
   reader.readAsDataURL(file);
 }
 
-/* dragging */
+/* Drag lines */
 function getClientY(e){ return e.touches ? e.touches[0].clientY : e.clientY; }
 canvas.addEventListener('mousedown', e=> startDrag(clientToCanvasY(getClientY(e))));
 canvas.addEventListener('mousemove', e=> moveDrag(clientToCanvasY(getClientY(e))));
@@ -179,13 +181,13 @@ function stopDrag(){ draggingLine=null; }
 resetLinesBtn.addEventListener('click', ()=>{ headTopY=140; chinY=460; eyeY=300; redraw(); });
 clearBtn.addEventListener('click', ()=>{ uploadedFile = null; originalImage = null; exifData = null; lastDetection = null; clearCanvas(); buildChecks(); });
 
-/* models */
+/* تحميل نماذج face-api */
 Promise.all([
   faceapi.nets.tinyFaceDetector.loadFromUri('models'),
   faceapi.nets.faceLandmark68Net.loadFromUri('models')
 ]);
 
-/* helpers */
+/* Helpers */
 function setCheckResult(key, status, message){
   const el = document.getElementById(`${key}-res`);
   if(!el) return;
@@ -193,21 +195,7 @@ function setCheckResult(key, status, message){
   el.innerText = (status==='pass'?'✅ ':status==='fail'?'❌ ':'⏳ ') + (message||'');
 }
 
-/* shadow analysis only */
-function analyzeShadows(imgData, box) {
-  const width = imgData.width, height = imgData.height, pixels = imgData.data;
-  let darkCount=0, total=0;
-  for(let i=0;i<pixels.length;i+=4){
-    const r=pixels[i], g=pixels[i+1], b=pixels[i+2];
-    const lum=0.299*r+0.587*g+0.114*b;
-    if(lum<40) darkCount++;
-    total++;
-  }
-  const pct = darkCount/total;
-  return { status: pct<=0.1 ? 'pass':'fail', message:`dark ${(pct*100).toFixed(1)}%` };
-}
-
-/* checks */
+/* فحوص تقنية */
 function checkColorDepth(){
   if(!originalImage) return 'fail';
   const tmpCanvas = document.createElement('canvas');
@@ -236,7 +224,7 @@ function checkEdited(){
   return edited ? 'fail' : 'pass';
 }
 
-/* main check */
+/* زر الفحص */
 checkBtn.addEventListener('click', async ()=>{
   if(!uploadedFile) return alert(lang==='en'?'Please upload an image first':'الرجاء تحميل صورة أولا');
 
@@ -268,16 +256,11 @@ checkBtn.addEventListener('click', async ()=>{
     const dy = jaw[jaw.length-1].y - jaw[0].y;
     const tilt = Math.atan2(dy,dx)*180/Math.PI;
     setCheckResult('tilt', Math.abs(tilt)<5?'pass':'fail', `${tilt.toFixed(1)}°`);
-
-    const imgData = ctx.getImageData(0,0,CANVAS_SIZE,CANVAS_SIZE);
-    const shadowRes = analyzeShadows(imgData, box);
-    setCheckResult('shadow', shadowRes.status, shadowRes.message);
   } else {
     setCheckResult('head','fail','No face');
     setCheckResult('eyes','fail','No face');
     setCheckResult('center','fail','No face');
     setCheckResult('tilt','fail','No face');
-    setCheckResult('shadow','fail','No face');
   }
 
   if (originalImage) {
