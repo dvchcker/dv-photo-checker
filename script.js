@@ -253,7 +253,7 @@ checkBtn.addEventListener('click', async ()=>{
     setCheckResult('center', off<=5?'pass':'fail', `${fmtPercent(off)}`);
     const jaw = lastDetection.landmarks.getJawOutline();
     const dx = jaw[jaw.length-1].x - jaw[0].x;
-    const dy = jaw[jaw.length-1].y - jaw[0].y;
+    
     const tilt = Math.atan2(dy,dx)*180/Math.PI;
     setCheckResult('tilt', Math.abs(tilt)<5?'pass':'fail', `${tilt.toFixed(1)}°`);
   } else {
